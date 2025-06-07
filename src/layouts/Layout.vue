@@ -11,9 +11,24 @@
 
         <!-- Desktop header -->
         <header v-if="! $root.isMobile" class="d-flex flex-wrap justify-content-center py-3 mb-3 border-bottom">
-            <router-link to="/dashboard" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
-                <object class="bi me-2 ms-4" width="40" height="40" data="/icon.svg" />
-                <span class="fs-4 title">{{ $t("Uptime Kuma") }}</span>
+            <!-- Jika sudah login -->
+            <router-link
+                v-if="$root.loggedIn"
+                to="/dashboard"
+                class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none"
+            >
+                <object class="bi me-2 ms-4" width="300" height="150" data="/cover.png" />
+            </router-link>
+
+            <!-- Jika belum login -->
+            <router-link
+                v-else
+                to="/dashboard"
+                class="d-flex align-items-center mb-3 mb-md-0 text-dark text-decoration-none"
+            >
+                <object data="/cover.png" width="400" height="200" aria-label="Waspada AI Logo">
+                    <img src="/cover.png" alt="Waspada AI Logo" />
+                </object>
             </router-link>
 
             <a v-if="hasNewVersion" target="_blank" href="https://github.com/louislam/uptime-kuma/releases" class="btn btn-info me-3">

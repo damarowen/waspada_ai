@@ -3,9 +3,9 @@
         <div class="form">
             <form @submit.prevent="submit">
                 <div>
-                    <object width="64" height="64" data="/icon.svg" />
+                    <object width="300" height="170" data="cover.png" />
                     <div style="font-size: 28px; font-weight: bold; margin-top: 5px;">
-                        Uptime Kuma
+                        Waspada AI
                     </div>
                 </div>
 

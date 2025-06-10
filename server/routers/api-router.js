@@ -592,12 +592,11 @@ router.get("/api/down-monitor", async (req, res) => {
         });
     } catch (e) {
         // Handle errors and respond with status 500 and error message
-        response.status(500).json({
+        res.status(500).json({
             ok: false,
             msg: e.message
         });
     }
-
 
     // Endpoint: GET /api/up-monitor
     // Description: Returns a list of monitors that are currently up.
@@ -629,7 +628,7 @@ router.get("/api/down-monitor", async (req, res) => {
             });
         } catch (e) {
         // Handle errors and respond with status 500 and error message
-            response.status(500).json({
+            res.status(500).json({
                 ok: false,
                 msg: e.message
             });

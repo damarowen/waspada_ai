@@ -558,4 +558,83 @@ router.get("/api/badge/:id/response", cache("5 minutes"), async (request, respon
     }
 });
 
+router.get("/api/hello", (req, res) => {
+    res.json({ message: "Hello from new endpoint!" });
+});
+
+// Endpoint: GET /api/down-monitor
+// Description: Returns a list of APIs (monitors) that are currently down.
+// The response includes the monitor name, URL, last message, and last checked time.
+
+router.get("/api/down-monitor", async (req, res) => {
+    try {
+        // Query the latest heartbeat for each monitor and select those with status = 0 (down)
+        const rows = await R.getAll(`
+            SELECT m.name, m.url, h.status, h.msg, h.time
+            FROM monitor m
+            JOIN (
+                SELECT monitor_id, MAX(time) AS last_time
+                FROM heartbeat
+                GROUP BY monitor_id
+            ) latest ON m.id = latest.monitor_id
+            JOIN heartbeat h ON h.monitor_id = latest.monitor_id AND h.time = latest.last_time
+            WHERE h.status = 0
+        `);
+
+        // Respond with a JSON object containing the list of down APIs
+        res.json({
+            downApis: rows.map(row => ({
+                name: row.name, // Monitor name
+                url: row.url,   // Monitor URL
+                message: row.msg, // Last message from heartbeat
+                lastChecked: new Date(row.time).toISOString() // Last checked time in ISO format
+            }))
+        });
+    } catch (e) {
+        // Handle errors and respond with status 500 and error message
+        response.status(500).json({
+            ok: false,
+            msg: e.message
+        });
+    }
+
+
+    // Endpoint: GET /api/up-monitor
+    // Description: Returns a list of monitors that are currently up.
+    // The response includes the monitor name, URL, last message, and last checked time.
+
+    router.get("/api/up-monitor", async (req, res) => {
+        try {
+            // Query the latest heartbeat for each monitor and select those with status = 1 (up)
+            const rows = await R.getAll(`
+            SELECT m.name, m.url, h.status, h.msg, h.time
+            FROM monitor m
+            JOIN (
+                SELECT monitor_id, MAX(time) AS last_time
+                FROM heartbeat
+                GROUP BY monitor_id
+            ) latest ON m.id = latest.monitor_id
+            JOIN heartbeat h ON h.monitor_id = latest.monitor_id AND h.time = latest.last_time
+            WHERE h.status = 1
+        `);
+
+            // Respond with a JSON object containing the list of up monitors
+            res.json({
+                upMonitors: rows.map(row => ({
+                    name: row.name, // Monitor name
+                    url: row.url,   // Monitor URL
+                    message: row.msg, // Last message from heartbeat
+                    lastChecked: new Date(row.time).toISOString() // Last checked time in ISO format
+                }))
+            });
+        } catch (e) {
+        // Handle errors and respond with status 500 and error message
+            response.status(500).json({
+                ok: false,
+                msg: e.message
+            });
+        }
+    });
+});
+
 module.exports = router;

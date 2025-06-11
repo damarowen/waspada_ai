@@ -2,11 +2,11 @@
 
 ## 📝 Todo List
 
-1. [] **Integrasikan Tawk.to ke platform ini**
+1. [v] **Integrasikan Tawk.to ke platform ini**
    - Tambahkan widget chat dari Tawk.to ke dalam halaman dashboard/internal monitoring
    - Pastikan script berjalan di environment internal
 
-2. [] **Branding Uptime Kuma menjadi Waspada AI**
+2. [v] **Branding Uptime Kuma menjadi Waspada AI**
    - Ganti seluruh teks "Uptime Kuma" → "Waspada AI"
    - Ganti logo utama (`icon.svg`, `favicon.ico`, dll)
    - Ubah title HTML dan metadata yang relevan
@@ -23,6 +23,7 @@
        - Panggil endpoint backend: `/status/down-today`
        - Endpoint query database Uptime Kuma (SQLite) dan return list API yang down
        - Format respons dan tampilkan lewat `Tawk_API.addEvent()`
+6. . [] **Integrasikan ke notifikasi teams**
 
 ### 🔁 Alur logika interaksi
 

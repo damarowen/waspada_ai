@@ -633,7 +633,79 @@ router.get("/api/down-monitor", async (req, res) => {
                 msg: e.message
             });
         }
+
+
     });
+});
+
+router.get("/status-tawk", async (req, res) => {
+    try {
+        const rows = await R.getAll(`
+            SELECT m.name, m.url, h.status, h.msg, h.time
+            FROM monitor m
+            JOIN (
+                SELECT monitor_id, MAX(time) AS last_time
+                FROM heartbeat
+                GROUP BY monitor_id
+            ) latest ON m.id = latest.monitor_id
+            JOIN heartbeat h ON h.monitor_id = latest.monitor_id AND h.time = latest.last_time
+            WHERE h.status = 0
+        `);
+
+        const downApis = rows.map(row => ({
+            name: row.name,
+            url: row.url,
+            message: row.msg,
+            lastChecked: new Date(row.time).toLocaleString("id-ID", {
+                dateStyle: "long",
+                timeStyle: "short",
+                timeZone: "Asia/Jakarta"
+            })
+        }));
+
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Status Layanan Waspada AI</title>
+                <meta charset="UTF-8" />
+                <style>
+                    body { font-family: sans-serif; padding: 20px; }
+                    h1 { color: #c0392b; }
+                    ul { padding-left: 20px; }
+                    li { margin-bottom: 10px; }
+                    a { color: #2980b9; }
+                </style>
+            </head>
+            <body>
+                <h1>Status Layanan Waspada AI</h1>
+        `;
+
+        if (downApis.length === 0) {
+            html += `<p>✅ Semua sistem saat ini berjalan normal.</p>`;
+        } else {
+            html += `<p>⚠️ Beberapa layanan sedang bermasalah:</p><ul>`;
+            for (const api of downApis) {
+                html += `<li>
+                    <strong>${api.name}</strong><br/>
+                    URL: <a href="${api.url}" target="_blank">${api.url}</a><br/>
+                    Pesan: ${api.message}<br/>
+                    Terakhir dicek: ${api.lastChecked}
+                </li>`;
+            }
+            html += `</ul>`;
+        }
+
+        html += `
+            </body>
+            </html>
+        `;
+
+        res.setHeader("Content-Type", "text/html");
+        res.send(html);
+    } catch (e) {
+        res.status(500).send(`<p>Gagal mengambil status layanan: ${e.message}</p>`);
+    }
 });
 
 module.exports = router;

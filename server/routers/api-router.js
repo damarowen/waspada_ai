@@ -633,7 +633,104 @@ router.get("/api/down-monitor", async (req, res) => {
                 msg: e.message
             });
         }
+
     });
+});
+
+router.get("/status-tawk", async (req, res) => {
+    try {
+        const rows = await R.getAll(`
+            SELECT
+                m.name,
+                m.url,
+                MIN(h.time) AS down_since,
+                MAX(h.time) AS last_checked,
+                MAX(h.status) AS status,
+                h.msg
+            FROM monitor m
+            JOIN heartbeat h ON m.id = h.monitor_id
+            WHERE h.status = 0
+              AND h.time >= (
+                SELECT MAX(time)
+                FROM heartbeat
+                WHERE monitor_id = m.id AND status = 1
+            )
+            GROUP BY m.id
+        `);
+
+        const downApis = rows.map(row => {
+            const downSince = new Date(row.down_since);
+            const lastChecked = new Date(row.last_checked);
+            const durationMs = lastChecked - downSince;
+            const durationMinutes = Math.floor(durationMs / 60000);
+            const durationHours = Math.floor(durationMinutes / 60);
+            const remainingMinutes = durationMinutes % 60;
+
+            const durationText = durationMinutes >= 60
+                ? `${durationHours} jam ${remainingMinutes} menit`
+                : `${durationMinutes} menit`;
+
+            console.log(row, "row");
+
+            return {
+                name: row.name,
+                url: row.url,
+                message: row.msg,
+                status: row.status,
+                lastChecked: lastChecked.toLocaleString("id-ID", {
+                    dateStyle: "long",
+                    timeStyle: "short",
+                    timeZone: "Asia/Jakarta"
+                }),
+                durationText
+            };
+        });
+
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Status Layanan Waspada AI</title>
+                <meta charset="UTF-8" />
+                <style>
+                    body { font-family: sans-serif; padding: 20px; }
+                    h1 { color: #c0392b; }
+                    ul { padding-left: 20px; }
+                    li { margin-bottom: 10px; }
+                    a { color: #2980b9; }
+                </style>
+            </head>
+            <body>
+                <h1>Status Layanan Waspada AI</h1>
+        `;
+
+        if (downApis.length === 0) {
+            html += "<p>✅ Semua sistem saat ini berjalan normal.</p>";
+        } else {
+            html += "<p>⚠️ Beberapa layanan sedang bermasalah:</p><ul>";
+            for (const api of downApis) {
+                html += `<li>
+                    <strong>${api.name}</strong><br/>
+                    URL: <a href="${api.url}" target="_blank">${api.url}</a><br/>
+                    Pesan: ${api.message}<br/>
+                    Terakhir dicek: ${api.lastChecked}<br/>
+                    Durasi down: ${api.durationText}
+                </li>`;
+            }
+            html += "</ul>";
+        }
+
+        html += `
+            </body>
+            </html>
+        `;
+
+        res.setHeader("Content-Type", "text/html");
+        res.send(html);
+    } catch (e) {
+        res.status(500).send(`<p>Gagal mengambil status layanan: ${e.message}</p>`);
+    }
+
 });
 
 module.exports = router;

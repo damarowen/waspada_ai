@@ -634,34 +634,57 @@ router.get("/api/down-monitor", async (req, res) => {
             });
         }
 
-
     });
 });
 
 router.get("/status-tawk", async (req, res) => {
     try {
         const rows = await R.getAll(`
-            SELECT m.name, m.url, h.status, h.msg, h.time
+            SELECT
+                m.name,
+                m.url,
+                MIN(h.time) AS down_since,
+                MAX(h.time) AS last_checked,
+                MAX(h.status) AS status,
+                h.msg
             FROM monitor m
-            JOIN (
-                SELECT monitor_id, MAX(time) AS last_time
-                FROM heartbeat
-                GROUP BY monitor_id
-            ) latest ON m.id = latest.monitor_id
-            JOIN heartbeat h ON h.monitor_id = latest.monitor_id AND h.time = latest.last_time
+            JOIN heartbeat h ON m.id = h.monitor_id
             WHERE h.status = 0
+              AND h.time >= (
+                SELECT MAX(time)
+                FROM heartbeat
+                WHERE monitor_id = m.id AND status = 1
+            )
+            GROUP BY m.id
         `);
 
-        const downApis = rows.map(row => ({
-            name: row.name,
-            url: row.url,
-            message: row.msg,
-            lastChecked: new Date(row.time).toLocaleString("id-ID", {
-                dateStyle: "long",
-                timeStyle: "short",
-                timeZone: "Asia/Jakarta"
-            })
-        }));
+        const downApis = rows.map(row => {
+            const downSince = new Date(row.down_since);
+            const lastChecked = new Date(row.last_checked);
+            const durationMs = lastChecked - downSince;
+            const durationMinutes = Math.floor(durationMs / 60000);
+            const durationHours = Math.floor(durationMinutes / 60);
+            const remainingMinutes = durationMinutes % 60;
+
+            const durationText = durationMinutes >= 60
+                ? `${durationHours} jam ${remainingMinutes} menit`
+                : `${durationMinutes} menit`;
+
+            console.log(row, "row");
+
+            return {
+                name: row.name,
+                url: row.url,
+                message: row.msg,
+                status: row.status,
+                lastChecked: lastChecked.toLocaleString("id-ID", {
+                    dateStyle: "long",
+                    timeStyle: "short",
+                    timeZone: "Asia/Jakarta"
+                }),
+                durationText
+            };
+        });
 
         let html = `
             <!DOCTYPE html>
@@ -682,18 +705,19 @@ router.get("/status-tawk", async (req, res) => {
         `;
 
         if (downApis.length === 0) {
-            html += `<p>✅ Semua sistem saat ini berjalan normal.</p>`;
+            html += "<p>✅ Semua sistem saat ini berjalan normal.</p>";
         } else {
-            html += `<p>⚠️ Beberapa layanan sedang bermasalah:</p><ul>`;
+            html += "<p>⚠️ Beberapa layanan sedang bermasalah:</p><ul>";
             for (const api of downApis) {
                 html += `<li>
                     <strong>${api.name}</strong><br/>
                     URL: <a href="${api.url}" target="_blank">${api.url}</a><br/>
                     Pesan: ${api.message}<br/>
-                    Terakhir dicek: ${api.lastChecked}
+                    Terakhir dicek: ${api.lastChecked}<br/>
+                    Durasi down: ${api.durationText}
                 </li>`;
             }
-            html += `</ul>`;
+            html += "</ul>";
         }
 
         html += `
@@ -706,6 +730,7 @@ router.get("/status-tawk", async (req, res) => {
     } catch (e) {
         res.status(500).send(`<p>Gagal mengambil status layanan: ${e.message}</p>`);
     }
+
 });
 
 module.exports = router;
